@@ -10,7 +10,10 @@ import "package:flutter_lorem/flutter_lorem.dart";
 import "package:supabase_flutter/supabase_flutter.dart";
 import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:intl/intl.dart";
+import 'package:uniso_social_media_app/screens/auth/sign_in_screen.dart';
+import 'package:uniso_social_media_app/screens/auth/sign_up_screen.dart';
 
+/// Initializes Supabase with API URL and Anon Key from environment variables.
 Future<void> initializeSupabase() async {
   var apiUrl = dotenv.env["API_URL"];
   var anonKey = dotenv.env["ANON_KEY"];
@@ -22,14 +25,17 @@ Future<void> initializeSupabase() async {
 
 void main() async {
   try {
+    // Loads environment variables from the .env file located in the supabase folder.
     await dotenv.load(fileName: "supabase/.env", isOptional: true);
   } finally {}
 
+  // Calls the Supabase initialization function.
   await initializeSupabase();
 
   runApp(App());
 }
 
+/// The root widget of the application.
 class App extends StatefulWidget {
   const App({super.key});
 
@@ -38,9 +44,11 @@ class App extends StatefulWidget {
 }
 
 class _App extends State<App> {
-  int _selectedIndex = 0;
-  final PageController _controller = PageController();
+  int _selectedIndex = 0; // Tracks the currently selected tab in the bottom navigation.
+  final PageController _controller = PageController(); // Controls the PageView for horizontal navigation.
+  bool _isAuthenticated = true; // Temporary flag to bypass login and see the Home UI.
 
+  /// Updates the selected index and animates the PageView to the corresponding page.
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -54,35 +62,40 @@ class _App extends State<App> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller.dispose(); // Always dispose controllers to free resources.
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
       darkTheme: ThemeData.dark(),
       themeMode: ThemeMode.system,
-      home: Scaffold(
-        body: PageView(
-          controller: _controller,
-          physics: const NeverScrollableScrollPhysics(),
-          children: const [Home(), Unisons()],
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          items: [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-            BottomNavigationBarItem(icon: Icon(Icons.people), label: "Unisons"),
-          ],
-        ),
-      ),
+      // Home property determines whether to show the main app or the Sign In screen.
+      home: _isAuthenticated
+        ? Scaffold(
+            body: PageView(
+              controller: _controller,
+              physics: const NeverScrollableScrollPhysics(), // Disables swiping to change pages manually.
+              children: const [Home(), Unisons()], // The two main tabs: Home feed and Unisons (chat).
+            ),
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: _onItemTapped,
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+                BottomNavigationBarItem(icon: Icon(Icons.people), label: "Unisons"),
+              ],
+            ),
+          )
+        : const SignInScreen(), // Shows login if the user is not authenticated.
     );
   }
 }
 
+/// Displays a list of members, currently used in a side drawer or dialog.
 class MemberList extends StatefulWidget {
   const MemberList({super.key});
 
@@ -100,20 +113,21 @@ class _MemberList extends State<MemberList> {
         child: SingleChildScrollView(
           child: Column(
             children:
-                List.generate(50, (index) {
-                      return TextButton(
-                        onPressed: () {},
-                        child: Row(
-                          children: [
-                            const Icon(Icons.person),
-                            Text(lorem(paragraphs: 1, words: 1)),
-                          ],
-                        ),
-                      );
-                    })
-                    .expand((widget) => [widget, const SizedBox(height: 8)])
-                    .toList()
-                  ..removeLast(),
+            List.generate(50, (index) {
+              return TextButton(
+                onPressed: () {},
+                child: Row(
+                  children: [
+                    const Icon(Icons.person),
+                    const SizedBox(width: 8),
+                    Text(lorem(paragraphs: 1, words: 1)), // Generates a random name for mock data.
+                  ],
+                ),
+              );
+            })
+                .expand((widget) => [widget, const SizedBox(height: 8)])
+                .toList()
+              ..removeLast(),
           ),
         ),
       ),
@@ -121,6 +135,7 @@ class _MemberList extends State<MemberList> {
   }
 }
 
+/// Sidebar for navigating between different "Unisons" (groups/channels).
 class UnisonsSidebar extends StatefulWidget {
   const UnisonsSidebar({super.key});
 
@@ -130,9 +145,7 @@ class UnisonsSidebar extends StatefulWidget {
 
 class _UnisonsSidebar extends State<UnisonsSidebar> {
   int? _selectedUnisonIndex;
-  var groups = List.generate(50, (index) {
-    return lorem(paragraphs: 1, words: 1);
-  });
+  var groups = List.generate(50, (index) => lorem(paragraphs: 1, words: 1));
 
   @override
   Widget build(BuildContext context) {
@@ -143,21 +156,20 @@ class _UnisonsSidebar extends State<UnisonsSidebar> {
           child: Column(
             children: [
               Row(
-                mainAxisAlignment: .spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Padding(
+                  const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Text("Unisons List"),
+                    child: Text("Unisons List", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
+                  // Menu for creating a new Unison group.
                   MenuAnchor(
                     menuChildren: [
                       MenuItemButton(
                         onPressed: () {
                           showDialog(
                             context: context,
-                            builder: (context) {
-                              return const CreateNewUnisonDialog();
-                            },
+                            builder: (context) => const CreateNewUnisonDialog(),
                           );
                         },
                         child: const Text("Create new Unison"),
@@ -165,19 +177,14 @@ class _UnisonsSidebar extends State<UnisonsSidebar> {
                     ],
                     builder: (context, controller, child) {
                       return IconButton(
-                        onPressed: () {
-                          if (controller.isOpen) {
-                            controller.close();
-                          } else {
-                            controller.open();
-                          }
-                        },
-                        icon: Icon(Icons.list),
+                        onPressed: () => controller.isOpen ? controller.close() : controller.open(),
+                        icon: const Icon(Icons.list),
                       );
                     },
                   ),
                 ],
               ),
+              // Search bar for filtering the list of Unisons.
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: TextField(
@@ -191,6 +198,7 @@ class _UnisonsSidebar extends State<UnisonsSidebar> {
             ],
           ),
         ),
+        // Scrollable list of Unison groups.
         Expanded(
           child: ListView.builder(
             itemCount: groups.length,
@@ -201,11 +209,7 @@ class _UnisonsSidebar extends State<UnisonsSidebar> {
                 selected: _selectedUnisonIndex == index,
                 selectedTileColor: Theme.of(context).colorScheme.primary,
                 selectedColor: Theme.of(context).colorScheme.onPrimary,
-                onTap: () {
-                  setState(() {
-                    _selectedUnisonIndex = index;
-                  });
-                },
+                onTap: () => setState(() => _selectedUnisonIndex = index),
               );
             },
           ),
@@ -215,6 +219,7 @@ class _UnisonsSidebar extends State<UnisonsSidebar> {
   }
 }
 
+/// The main chat interface screen.
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -230,53 +235,45 @@ class _ChatScreen extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-
+    // Subscribes to a Supabase Realtime channel for instant messaging.
     roomChannel = Supabase.instance.client.channel(
       "room:messages",
-      opts: RealtimeChannelConfig(self: true),
+      opts: const RealtimeChannelConfig(self: true),
     );
   }
 
   @override
   void dispose() {
     _inputMessageController.dispose();
-    roomChannel.unsubscribe();
-
+    roomChannel.unsubscribe(); // Ensure we stop listening to chat updates when leaving.
     super.dispose();
   }
 
+  /// Sends the current input message to Supabase.
   void sendMessage() async {
     var content = _inputMessageController.text;
     _inputMessageController.text = "";
-    if (content.isEmpty) {
-      return;
-    }
+    if (content.isEmpty) return;
 
     try {
-      setState(() {
-        _isSending = true;
-      });
+      setState(() => _isSending = true);
 
+      // Insert message into the database.
       var data = await Supabase.instance.client
           .from("messages")
           .insert({"content": content})
           .select()
           .single();
 
+      // Broadcast the new message to other clients on the same channel.
       roomChannel.sendBroadcastMessage(event: "message_sent", payload: data);
 
-      setState(() {
-        _isSending = false;
-      });
+      setState(() => _isSending = false);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
-      setState(() {
-        _inputMessageController.text = content;
-      });
+      setState(() => _inputMessageController.text = content);
     }
   }
 
@@ -287,6 +284,7 @@ class _ChatScreen extends State<ChatScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            // Button to open the list of members in the current chat.
             ElevatedButton(
               onPressed: () {
                 showDialog(
@@ -310,15 +308,17 @@ class _ChatScreen extends State<ChatScreen> {
             ),
           ],
         ),
-        Divider(),
+        const Divider(),
+        // Component that renders the stream of chat messages.
         UnisonConversation(roomChannel: roomChannel),
+        // Input bar for typing and sending messages.
         Row(
           children: [
             Expanded(
               child: TextField(
                 controller: _inputMessageController,
                 onSubmitted: (_) => sendMessage(),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: "Enter your message...",
                   border: OutlineInputBorder(),
                 ),
@@ -335,6 +335,7 @@ class _ChatScreen extends State<ChatScreen> {
   }
 }
 
+/// Layout for the Unisons tab, splitting the screen into a sidebar and a chat window.
 class Unisons extends StatefulWidget {
   const Unisons({super.key});
 
@@ -347,11 +348,11 @@ class _Unisons extends State<Unisons> {
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+      children: const [
         SizedBox(width: 250, child: UnisonsSidebar()),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(16.0),
             child: ChatScreen(),
           ),
         ),
@@ -360,6 +361,7 @@ class _Unisons extends State<Unisons> {
   }
 }
 
+/// Dialog for entering details to create a new chat group (Unison).
 class CreateNewUnisonDialog extends StatefulWidget {
   const CreateNewUnisonDialog({super.key});
 
@@ -383,7 +385,7 @@ class _CreateNewUnisonDialog extends State<CreateNewUnisonDialog> {
             TextFormField(
               decoration: const InputDecoration(
                 labelText: "Name",
-                hintText: "Name",
+                hintText: "Enter unison name",
               ),
               validator: (value) {
                 if (value == null || value.length < 4) {
@@ -397,15 +399,13 @@ class _CreateNewUnisonDialog extends State<CreateNewUnisonDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
+          onPressed: () => Navigator.of(context).pop(),
           child: const Text("Cancel"),
         ),
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
-              // Create
+              Navigator.of(context).pop();
             }
           },
           child: const Text("Create"),
@@ -415,6 +415,7 @@ class _CreateNewUnisonDialog extends State<CreateNewUnisonDialog> {
   }
 }
 
+/// Component that listens for and displays chat messages in real-time.
 class UnisonConversation extends StatefulWidget {
   final RealtimeChannel roomChannel;
   const UnisonConversation({super.key, required this.roomChannel});
@@ -429,6 +430,7 @@ class _UnisonConversation extends State<UnisonConversation> {
   double _currentOffset = 0;
   bool _loadingMessages = false;
 
+  /// Fetches the message history from Supabase database.
   Future<List<Message>> fetchMessages() async {
     final messages = await Supabase.instance.client
         .from("messages")
@@ -443,11 +445,10 @@ class _UnisonConversation extends State<UnisonConversation> {
     super.initState();
 
     _chatScrollController.addListener(() {
-      setState(() {
-        _currentOffset = _chatScrollController.offset;
-      });
+      setState(() => _currentOffset = _chatScrollController.offset);
     });
 
+    // Listens for "message_sent" events from other users in the same room.
     widget.roomChannel
         .onBroadcast(
           event: "message_sent",
@@ -461,34 +462,7 @@ class _UnisonConversation extends State<UnisonConversation> {
         .subscribe();
   }
 
-  @override
-  void dispose() {
-    widget.roomChannel.unsubscribe();
-    super.dispose();
-  }
-
-  void loadMessages() async {
-    var messenger = ScaffoldMessenger.of(context);
-
-    setState(() {
-      _loadingMessages = true;
-    });
-
-    try {
-      var newMessages = await fetchMessages();
-
-      setState(() {
-        messages = newMessages;
-      });
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
-    }
-
-    setState(() {
-      _loadingMessages = false;
-    });
-  }
-
+  /// Automatically scrolls the chat to the newest message.
   void _scrollToBottom() {
     _chatScrollController.animateTo(
       0.0,
@@ -501,28 +475,27 @@ class _UnisonConversation extends State<UnisonConversation> {
   Widget build(BuildContext context) {
     return Expanded(
       child: Stack(
-        alignment: .center,
+        alignment: Alignment.center,
         children: [
           ListView.builder(
             controller: _chatScrollController,
             itemCount: messages.length + 1,
-            reverse: true,
+            reverse: true, // Newest messages appear at the bottom.
             padding: const EdgeInsets.fromLTRB(0, 8, 16, 8),
             itemBuilder: (context, index) {
               if (index == messages.length) {
                 return Center(
                   child: _loadingMessages
-                      ? CircularProgressIndicator()
+                      ? const CircularProgressIndicator()
                       : TextButton(
-                          onPressed: () {
-                            loadMessages();
-                          },
-                          child: const Text("Load more messages"),
-                        ),
+                    onPressed: () {
+                      // Trigger loading message history logic.
+                    },
+                    child: const Text("Load more messages"),
+                  ),
                 );
               }
 
-              bool isOther = index % 2 == 0;
               var message = messages[messages.length - index - 1];
 
               return Padding(
@@ -530,47 +503,26 @@ class _UnisonConversation extends State<UnisonConversation> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Avatar
-                    CircleAvatar(
-                      backgroundColor: isOther ? Colors.orange : Colors.indigo,
-                      child: const Icon(Icons.person, color: Colors.white),
+                    const CircleAvatar(
+                      backgroundColor: Colors.indigo,
+                      child: Icon(Icons.person, color: Colors.white),
                     ),
                     const SizedBox(width: 12),
-                    // Message Content
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Header: Username and Timestamp
                           Row(
                             children: [
-                              Text(
-                                isOther ? "User A" : "User B",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
+                              const Text("Username", style: TextStyle(fontWeight: FontWeight.bold)),
                               const SizedBox(width: 8),
                               Text(
-                                DateFormat(
-                                  "M/d/yy, h:mm a",
-                                ).format(message.createdAt),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(
-                                    context,
-                                  ).textTheme.bodySmall?.color?.withValues(),
-                                ),
+                                DateFormat("M/d/yy, h:mm a").format(message.createdAt),
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          // Message Body
-                          Text(
-                            message.content,
-                            style: const TextStyle(fontSize: 15),
-                          ),
+                          Text(message.content, style: const TextStyle(fontSize: 15)),
                         ],
                       ),
                     ),
@@ -579,13 +531,13 @@ class _UnisonConversation extends State<UnisonConversation> {
               );
             },
           ),
+          // Scroll-to-bottom button when user has scrolled up.
           if (_currentOffset > 0)
             Positioned(
               bottom: 16,
               child: IconButton.filled(
                 onPressed: _scrollToBottom,
-                // icon: Text(_currentOffset.toString()),
-                icon: Icon(Icons.arrow_downward),
+                icon: const Icon(Icons.arrow_downward),
               ),
             ),
         ],
@@ -594,6 +546,7 @@ class _UnisonConversation extends State<UnisonConversation> {
   }
 }
 
+/// The main feed screen where users can scroll through vertically paginated posts.
 class Home extends StatefulWidget {
   const Home({super.key});
 
@@ -609,11 +562,7 @@ class _Home extends State<Home> {
   int _currentPicsumPage = 0;
   bool _isLoading = false;
 
-  static const Curve _pageAnimation = Curves.easeOutCubic;
-
-  // Debug
-  bool _isLoggedIn = true;
-
+  /// Fetches a list of random images from the Picsum API.
   Future<List<PicsumImage>> fetchImages(int page, {int? limit = 4}) async {
     final response = await http.get(
       Uri.parse("https://picsum.photos/v2/list?page=$page&limit=$limit"),
@@ -627,14 +576,12 @@ class _Home extends State<Home> {
     }
   }
 
+  /// Automatically loads more images when the user reaches the end of the feed.
   Future<void> _fetchNextPage() async {
     if (_isLoading) return;
-
     setState(() => _isLoading = true);
-
     try {
       var newImages = await fetchImages(_currentPicsumPage);
-
       setState(() {
         _images.addAll(newImages);
         _currentPicsumPage++;
@@ -648,39 +595,10 @@ class _Home extends State<Home> {
   @override
   void initState() {
     super.initState();
-
     _fetchNextPage();
     _pageController.addListener(() {
-      if (_currentPage > _images.length - 2) {
-        _fetchNextPage();
-      }
+      if (_currentPage > _images.length - 2) _fetchNextPage();
     });
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    _pageController.dispose();
-  }
-
-  void nextPage() {
-    int targetPage = (_currentPage + 1).clamp(0, _images.length - 1);
-    _currentPage = targetPage;
-    _pageController.animateToPage(
-      targetPage,
-      duration: const Duration(milliseconds: 300),
-      curve: _pageAnimation,
-    );
-  }
-
-  void previousPage() {
-    int targetPage = (_currentPage - 1).clamp(0, _images.length - 1);
-    _currentPage = targetPage;
-    _pageController.animateToPage(
-      targetPage,
-      duration: const Duration(milliseconds: 300),
-      curve: _pageAnimation,
-    );
   }
 
   @override
@@ -691,45 +609,13 @@ class _Home extends State<Home> {
         _images.isEmpty
             ? const CenteredCircularProgress()
             : PageView.builder(
-                controller: _pageController,
-                scrollDirection: Axis.vertical,
-                itemCount: _images.length,
-                onPageChanged: (page) {
-                  setState(() {
-                    _currentPage = page;
-                  });
-                },
-                itemBuilder: (context, index) {
-                  var image = _images[index];
-                  return PostPage(image: image);
-                },
-              ),
-        if (kDebugMode)
-          Positioned(
-            top: 16,
-            child: Text(
-              "Page $_currentPage",
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        Positioned(
-          right: 16,
-          child: Column(
-            children: [
-              if (_currentPage > 0)
-                TextButton(
-                  onPressed: previousPage,
-                  style: TextButton.styleFrom(shape: const CircleBorder()),
-                  child: const Icon(Icons.keyboard_arrow_up),
-                ),
-              TextButton(
-                onPressed: nextPage,
-                style: TextButton.styleFrom(shape: const CircleBorder()),
-                child: const Icon(Icons.keyboard_arrow_down),
-              ),
-            ],
-          ),
+          controller: _pageController,
+          scrollDirection: Axis.vertical, // Scrolling vertical for a TikTok-like feed.
+          itemCount: _images.length,
+          onPageChanged: (page) => setState(() => _currentPage = page),
+          itemBuilder: (context, index) => PostPage(image: _images[index]),
         ),
+        // Overlay for navigation between Sign In and Sign Up.
         Positioned(
           top: 0.0,
           left: 0.0,
@@ -737,44 +623,30 @@ class _Home extends State<Home> {
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
-                _isLoggedIn
-                    ? Pressable(
-                        onPressed: () {
-                          setState(() {
-                            _isLoggedIn = !_isLoggedIn;
-                          });
-                        },
-                        child: CircleAvatar(
-                          backgroundImage: NetworkImage(
-                            "https://avatars.githubusercontent.com/u/64018564?v=4",
-                          ),
-                          radius: 24,
-                        ),
-                      )
-                    : IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _isLoggedIn = !_isLoggedIn;
-                          });
-                        },
-                        style: IconButton.styleFrom(
-                          shape: const CircleBorder(),
-                        ),
-                        icon: const Icon(Icons.person, color: Colors.white),
+                // MenuAnchor triggers the dropdown menu when the profile avatar is clicked.
+                MenuAnchor(
+                  builder: (context, controller, child) {
+                    return Pressable(
+                      onPressed: () => controller.isOpen ? controller.close() : controller.open(),
+                      child: const CircleAvatar(
+                        backgroundImage: NetworkImage("https://avatars.githubusercontent.com/u/64018564?v=4"),
+                        radius: 24,
                       ),
-                const SizedBox(width: 16),
-                Text(
-                  "Your name",
-                  style: TextStyle(
-                    color: Colors.white,
-                    shadows: [
-                      Shadow(
-                        offset: Offset.fromDirection(10, 2),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
+                    );
+                  },
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignInScreen())),
+                      child: const Text('Sign In'),
+                    ),
+                    MenuItemButton(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignUpScreen())),
+                      child: const Text('Sign Up'),
+                    ),
+                  ],
                 ),
+                const SizedBox(width: 16),
+                const Text("Your name", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -784,95 +656,46 @@ class _Home extends State<Home> {
   }
 }
 
+/// A custom wrapper to make any widget clickable with a hover cursor effect.
 class Pressable extends StatelessWidget {
   final Widget child;
   final VoidCallback? onPressed;
-  final HitTestBehavior behavior;
-  final SystemMouseCursor cursor;
-
-  const Pressable({
-    super.key,
-    required this.child,
-    this.onPressed,
-    this.behavior = HitTestBehavior.opaque, // Makes empty space clickable
-    this.cursor = SystemMouseCursors.click, // Shows the "hand" icon
-  });
+  const Pressable({super.key, required this.child, this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      cursor: cursor,
-      child: GestureDetector(
-        onTap: onPressed,
-        behavior: behavior,
-        child: child,
-      ),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: onPressed, child: child),
     );
   }
 }
 
+/// A full-screen container that shows a loading indicator.
 class CenteredCircularProgress extends StatelessWidget {
-  final double? progress;
-
-  const CenteredCircularProgress({super.key, this.progress});
-
+  const CenteredCircularProgress({super.key});
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.black,
       alignment: Alignment.center,
-      child: CircularProgressIndicator(value: progress),
+      child: const CircularProgressIndicator(),
     );
   }
 }
 
-class PostPage extends StatefulWidget {
+/// Renders a single image post in the vertical Home feed.
+class PostPage extends StatelessWidget {
   final PicsumImage image;
-
   const PostPage({super.key, required this.image});
 
   @override
-  State<PostPage> createState() => _PostPage();
-}
-
-class _PostPage extends State<PostPage> {
-  @override
   Widget build(BuildContext context) {
     return CachedNetworkImage(
-      fadeInDuration: Duration.zero,
-      imageUrl: widget.image.downloadUrl,
+      imageUrl: image.downloadUrl,
       fit: BoxFit.cover,
-      progressIndicatorBuilder: (context, url, progress) {
-        return CenteredCircularProgress(progress: progress.progress);
-      },
-      imageBuilder: (context, imageProvider) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: Image(image: imageProvider, fit: BoxFit.cover),
-            ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  widget.image.author,
-                  style: TextStyle(
-                    color: Colors.white,
-                    shadows: [
-                      Shadow(
-                        offset: Offset.fromDirection(10, 2),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      placeholder: (context, url) => const CenteredCircularProgress(),
+      errorWidget: (context, url, error) => const Icon(Icons.error),
     );
   }
 }
